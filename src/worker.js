@@ -1,5 +1,5 @@
-export default {
-  async fetch(request, env, ctx) {
+const worker = {
+  async fetch(request, env) {
     const url = new URL(request.url);
     
     // Обработка статических файлов Next.js
@@ -113,4 +113,6 @@ export default {
       }
     });
   }
-}; 
+};
+
+export default worker; 

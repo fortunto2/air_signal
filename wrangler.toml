@@ -10,10 +10,6 @@ main = "src/worker.js"
 directory = ".next/static"
 binding = "ASSETS"
 
-# Маршруты для статических файлов
-[[assets.routes]]
-matches = ["/_next/static/*"]
-
 [build]
 command = "npm run build"
 
