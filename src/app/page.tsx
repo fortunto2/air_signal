@@ -1,103 +1,274 @@
-import Image from "next/image";
+'use client'
+
+import { AirQualityDisplay } from '@/components/AirQualityDisplay'
+import useSWR from 'swr'
+import { MapPin, RefreshCw, BarChart3, ExternalLink } from 'lucide-react'
+import type { ApiResponse } from '@/types/sensor'
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const { data, error, isLoading, mutate } = useSWR<ApiResponse>('/api/sensor', fetcher, {
+    refreshInterval: 5 * 60 * 1000, // Обновляем каждые 5 минут
+    revalidateOnFocus: false,
+  })
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const handleRefresh = () => {
+    mutate()
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="bg-card shadow-sm border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <MapPin className="h-6 w-6 text-primary" />
+              <h1 className="text-2xl font-bold text-foreground">
+                Мониторинг воздуха в Газипаше
+              </h1>
+            </div>
+            <button
+              onClick={handleRefresh}
+              disabled={isLoading}
+              className="flex items-center space-x-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>Обновить</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* Current Air Quality */}
+        <div className="mb-8">
+          {error && (
+            <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+              <h3 className="text-destructive font-semibold mb-2">Ошибка загрузки данных</h3>
+              <p className="text-destructive/80 text-sm">
+                Не удалось получить данные с сервера. Проверьте подключение к интернету и попробуйте обновить страницу.
+              </p>
+            </div>
+          )}
+          <AirQualityDisplay data={data?.current} loading={isLoading} />
+        </div>
+
+        {/* Grafana Dashboard Link */}
+        <div className="mb-8">
+          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+            <div className="flex flex-col space-y-1.5 p-6">
+              <div className="flex items-center space-x-2">
+                <BarChart3 className="h-6 w-6 text-primary" />
+                <h3 className="text-2xl font-semibold leading-none tracking-tight">
+                  Исторические данные
+                </h3>
+              </div>
+            </div>
+            <div className="p-6 pt-0">
+              <p className="text-muted-foreground mb-4">
+                Для просмотра исторических данных и детальной аналитики перейдите в официальный дашборд Grafana:
+              </p>
+              
+              <a
+                href="https://api-rrd.madavi.de:3000/grafana/d/GUaL5aZMz/pm-sensors?orgId=1&var-chipID=esp8266-15072310&theme=light"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors font-medium"
+              >
+                <BarChart3 className="h-5 w-5" />
+                <span>Открыть Grafana дашборд</span>
+                <ExternalLink className="h-4 w-4" />
+              </a>
+              
+              <div className="mt-4 p-3 bg-muted/50 rounded-md">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Возможности Grafana:</strong> Графики за последние 24 часа, недели и месяцы • 
+                  Экспорт данных • Настройка временных интервалов • Сравнение показателей
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Air Quality Information */}
+        <div className="mb-8">
+          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+            <div className="flex flex-col space-y-1.5 p-6">
+              <h3 className="text-2xl font-semibold leading-none tracking-tight">О показателях качества воздуха</h3>
+            </div>
+            <div className="p-6 pt-0">
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* PM2.5 Info */}
+                <div className="space-y-3">
+                  <h4 className="text-lg font-medium text-foreground">PM2.5 (Мелкие частицы)</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Частицы диаметром менее 2.5 микрометров. Самые опасные для здоровья, так как могут проникать глубоко в легкие и кровеносную систему.
+                  </p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="px-2 py-1 rounded text-green-300 bg-green-900/30">0-12 µg/m³</span>
+                      <span className="text-muted-foreground">Хорошо</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="px-2 py-1 rounded text-yellow-300 bg-yellow-900/30">12-35 µg/m³</span>
+                      <span className="text-muted-foreground">Умеренно</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="px-2 py-1 rounded text-orange-300 bg-orange-900/30">35-55 µg/m³</span>
+                      <span className="text-muted-foreground">Нездорово для чувствительных</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="px-2 py-1 rounded text-red-300 bg-red-900/30">55+ µg/m³</span>
+                      <span className="text-muted-foreground">Нездорово</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PM10 Info */}
+                <div className="space-y-3">
+                  <h4 className="text-lg font-medium text-foreground">PM10 (Крупные частицы)</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Частицы диаметром менее 10 микрометров. Могут раздражать дыхательные пути и ухудшать работу легких.
+                  </p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="px-2 py-1 rounded text-green-300 bg-green-900/30">0-25 µg/m³</span>
+                      <span className="text-muted-foreground">Хорошо</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="px-2 py-1 rounded text-yellow-300 bg-yellow-900/30">25-50 µg/m³</span>
+                      <span className="text-muted-foreground">Умеренно</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="px-2 py-1 rounded text-orange-300 bg-orange-900/30">50-90 µg/m³</span>
+                      <span className="text-muted-foreground">Нездорово для чувствительных</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="px-2 py-1 rounded text-red-300 bg-red-900/30">90+ µg/m³</span>
+                      <span className="text-muted-foreground">Нездорово</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Health Recommendations */}
+              <div className="mt-6 p-4 rounded-lg bg-blue-950/30 border border-blue-800/30">
+                <h4 className="font-medium text-blue-300 mb-3">💡 Рекомендации по защите здоровья</h4>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <ul className="text-sm text-blue-100 space-y-1.5">
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-400 mt-0.5">•</span>
+                      <span>При плохом качестве воздуха ограничьте время на улице</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-400 mt-0.5">•</span>
+                      <span>Закрывайте окна при высоких показателях PM</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-400 mt-0.5">•</span>
+                      <span>Используйте воздухоочистители в помещении</span>
+                    </li>
+                  </ul>
+                  <ul className="text-sm text-blue-100 space-y-1.5">
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-400 mt-0.5">•</span>
+                      <span>Носите маски N95/FFP2 при выходе на улицу</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-400 mt-0.5">•</span>
+                      <span>Люди с астмой и болезнями сердца должны быть особенно осторожны</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-blue-400 mt-0.5">•</span>
+                      <span>Занимайтесь спортом в помещении при плохом воздухе</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mt-4 text-xs text-muted-foreground flex items-center gap-2">
+                <span>📊</span>
+                <span>Стандарты основаны на рекомендациях ВОЗ (WHO) и Агентства по охране окружающей среды США (EPA)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* About Section */}
+        <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+          <div className="flex flex-col space-y-1.5 p-6">
+            <h3 className="text-2xl font-semibold leading-none tracking-tight">О проекте</h3>
+          </div>
+          <div className="p-6 pt-0">
+            <div className="prose prose-sm max-w-none text-muted-foreground">
+              <p className="mb-4">
+                Этот дашборд отображает актуальные данные о качестве воздуха в регионе Газипаши, 
+                получаемые с датчиков сети{' '}
+                <a 
+                  href="https://sensor.community/" 
+                  className="text-primary hover:underline" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                >
+                  Sensor.Community
+                </a>. Система получает данные с реального датчика #77955 (esp8266-15072310) в Газипаше.
+              </p>
+
+              <div className="grid md:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <h4 className="font-semibold mb-2 text-foreground">Измеряемые параметры:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    <li>PM2.5 - мелкие частицы (основной показатель)</li>
+                    <li>PM10 - крупные частицы</li>
+                    <li>Температура воздуха (при наличии BME280)</li>
+                    <li>Влажность воздуха (при наличии BME280)</li>
+                    <li>Атмосферное давление (при наличии BME280)</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-2 text-foreground">Технические детали:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    <li>Датчик: esp8266-15072310 (SDS011)</li>
+                    <li>Локация: Газипаша (36.266°N, 32.294°E)</li>
+                    <li>Обновление данных: каждые 5 минут</li>
+                    <li>API: Sensor.Community (реальные данные)</li>
+                    <li>Стандарты: WHO Air Quality Guidelines</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 bg-primary/10 rounded-md">
+                <p className="text-sm text-primary">
+                  <strong>Статус:</strong> Дашборд получает реальные данные с датчика #77955 в Газипаше. 
+                  Для исторических данных используйте Grafana дашборд выше.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      {/* Footer */}
+      <footer className="bg-card border-t border-border mt-12">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="text-center text-sm text-muted-foreground">
+            <p>
+              Дашборд качества воздуха • Создано с ❤️ для Газипаши •
+              <a 
+                href="https://github.com/opendata-stuttgart" 
+                className="ml-1 text-primary hover:underline" 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                Open Data Stuttgart
+              </a>
+            </p>
+          </div>
+        </div>
       </footer>
     </div>
-  );
+  )
 }
