@@ -3,7 +3,6 @@ import { SensorData, ApiResponse } from '@/types/sensor'
 
 // Константы для API
 const SENSOR_COMMUNITY_API = 'https://data.sensor.community/airrohr/v1'
-const CHIP_ID = 'esp8266-15072310'
 const TARGET_SENSOR_ID = 77955
 const USER_AGENT = 'Mozilla/5.0 (compatible; AirQualityBot/1.0)'
 
@@ -45,7 +44,7 @@ function parseSensorData(readings: SensorReading[]): SensorData | null {
         data.humidity = value
         break
       case 'pressure':
-        data.pressure = parseFloat(item.value)
+        data.pressure = parseFloat(reading.value)
         break
     }
   }
