@@ -9,7 +9,9 @@
     "lint": "next lint",
     "pages:build": "pnpm build",
     "pages:dev": "pnpm dev",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "cf:dev": "wrangler dev"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

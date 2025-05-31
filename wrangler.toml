@@ -1,0 +1,24 @@
+name = "air-signal"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Entry point для Worker
+main = "src/worker.js"
+
+# Статические ассеты Next.js
+[assets]
+directory = ".next/static"
+binding = "ASSETS"
+
+# Маршруты для статических файлов
+[[assets.routes]]
+matches = ["/_next/static/*"]
+
+[build]
+command = "npm run build"
+
+[env.production]
+name = "air-signal"
+
+[env.preview]
+name = "air-signal-preview" 
