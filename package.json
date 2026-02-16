@@ -17,25 +17,24 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "lucide-react": "^0.511.0",
-    "next": "15.3.3",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "recharts": "^2.15.3",
-    "swr": "^2.3.3",
-    "tailwind-merge": "^3.3.0"
+    "lucide-react": "^0.564.0",
+    "next": "16.1.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "recharts": "^3.7.0",
+    "swr": "^2.4.0",
+    "tailwind-merge": "^3.4.1"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.1",
-    "@tailwindcss/postcss": "^4.1.8",
-    "@types/jszip": "^3.4.1",
-    "@types/node": "^20.17.57",
-    "@types/react": "^19.1.6",
-    "@types/react-dom": "^19.1.5",
-    "eslint": "^9.28.0",
-    "eslint-config-next": "15.3.3",
-    "tailwindcss": "^4.1.8",
-    "typescript": "^5.8.3"
+    "@eslint/eslintrc": "^3.3.3",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^25.2.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=18.0.0"
