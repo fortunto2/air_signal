@@ -8,6 +8,7 @@ const OPEN_METEO_WX = 'https://api.open-meteo.com/v1/forecast';
 const OPEN_METEO_MARINE = 'https://marine-api.open-meteo.com/v1/marine';
 const USGS_EQ = 'https://earthquake.usgs.gov/fdsnws/event/1/query';
 const NOAA_KP = 'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json';
+const SENSOR_COMMUNITY = 'https://data.sensor.community/airrohr/v1/filter';
 
 async function fetchJson(url: string) {
   const res = await fetch(url, { next: { revalidate: 300 } }); // 5min cache
@@ -36,21 +37,62 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'lat and lon required' }, { status: 400 });
   }
 
-  // Parallel fetch all data sources
-  const [aq, wx, marine, eq, kp] = await Promise.all([
+  // Parallel fetch all data sources + Sensor.Community
+  const [aq, wx, marine, eq, kp, sensors] = await Promise.all([
     fetchJson(`${OPEN_METEO_AQ}?latitude=${lat}&longitude=${lon}&current=pm2_5,pm10`),
     fetchJson(`${OPEN_METEO_WX}?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,surface_pressure&hourly=uv_index&forecast_days=1&daily=sunrise,sunset&timezone=auto`),
     fetchJson(`${OPEN_METEO_MARINE}?latitude=${lat}&longitude=${lon}&current=wave_height`).catch(() => null),
     fetchJson(`${USGS_EQ}?format=geojson&latitude=${lat}&longitude=${lon}&maxradiuskm=500&limit=1`).catch(() => null),
     fetchJson(NOAA_KP).catch(() => null),
+    fetchJson(`${SENSOR_COMMUNITY}/area=${lat},${lon},10`).catch(() => null),
   ]);
+
+  // Merge: sensors = ground truth, model = fallback
+  let sensorPm25: number[] = [];
+  let sensorPm10: number[] = [];
+  if (Array.isArray(sensors)) {
+    for (const s of sensors) {
+      for (const v of s?.sensordatavalues ?? []) {
+        const val = parseFloat(v?.value);
+        if (isNaN(val) || val <= 0 || val > 500) continue;
+        if (v.value_type === 'P2') sensorPm25.push(val);
+        if (v.value_type === 'P1') sensorPm10.push(val);
+      }
+    }
+  }
+  sensorPm25.sort((a, b) => a - b);
+  sensorPm10.sort((a, b) => a - b);
+  const sMedianPm25 = sensorPm25.length > 0 ? sensorPm25[Math.floor(sensorPm25.length / 2)] : null;
+  const sMedianPm10 = sensorPm10.length > 0 ? sensorPm10[Math.floor(sensorPm10.length / 2)] : null;
+  const modelPm25 = aq?.current?.pm2_5 ?? null;
+  const modelPm10 = aq?.current?.pm10 ?? null;
+
+  // Dynamic merge: high divergence → ignore model
+  const sensorCount = sensorPm25.length;
+  let pm25: number;
+  let pm10: number;
+  let mergeSource: string;
+  if (sMedianPm25 != null && modelPm25 != null) {
+    const divergence = sMedianPm25 > 1 ? Math.max(modelPm25 / sMedianPm25, sMedianPm25 / modelPm25) : 1;
+    const modelWeight = Math.min(0.3, 0.3 / (1 + Math.exp((divergence - 1) * 2)) * (sensorCount > 5 ? 0.3 : 0.8));
+    pm25 = sMedianPm25 * (1 - modelWeight) + modelPm25 * modelWeight;
+    pm10 = (sMedianPm10 ?? pm25 * 1.5) * (1 - modelWeight) + (modelPm10 ?? pm25 * 1.5) * modelWeight;
+    mergeSource = `${sensorCount} sensors + model (weight ${(modelWeight * 100).toFixed(0)}%)`;
+  } else if (sMedianPm25 != null) {
+    pm25 = sMedianPm25;
+    pm10 = sMedianPm10 ?? pm25 * 1.5;
+    mergeSource = `${sensorCount} sensors`;
+  } else {
+    pm25 = modelPm25 ?? 0;
+    pm10 = modelPm10 ?? 0;
+    mergeSource = 'model only';
+  }
 
   const scores: Record<string, { score: number; value: string }> = {};
 
-  // Air (PM2.5 → AQI → sigmoid)
-  const pm25 = aq?.current?.pm2_5 ?? 0;
+  // Air (merged PM2.5 → AQI → sigmoid)
   const pm25Aqi = pm25 <= 12 ? pm25 / 12 * 50 : pm25 <= 35.4 ? 51 + (pm25 - 12.1) / 23.3 * 49 : 151;
-  scores.air = { score: sigmoidDesc(pm25Aqi, 75, 0.04), value: `PM2.5: ${pm25} ug/m3` };
+  scores.air = { score: sigmoidDesc(pm25Aqi, 75, 0.04), value: `PM2.5: ${pm25.toFixed(1)} (${mergeSource})` };
 
   // Temperature
   const temp = wx?.current?.temperature_2m ?? 23;
