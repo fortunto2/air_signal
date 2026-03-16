@@ -39,7 +39,7 @@ export function TopCities({ onCityClick }: TopCitiesProps) {
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b border-border">
-        <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Air Quality Ranking</h3>
+        <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">AQI Ranking <span className="font-normal normal-case">(model data)</span></h3>
       </div>
       <div className="divide-y divide-border">
         {cities.map((city, i) => {

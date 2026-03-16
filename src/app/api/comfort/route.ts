@@ -40,7 +40,7 @@ export async function GET(request: Request) {
   // Parallel fetch all data sources + Sensor.Community
   const [aq, wx, marine, eq, kp, sensors] = await Promise.all([
     fetchJson(`${OPEN_METEO_AQ}?latitude=${lat}&longitude=${lon}&current=pm2_5,pm10`),
-    fetchJson(`${OPEN_METEO_WX}?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,surface_pressure&hourly=uv_index&forecast_days=1&daily=sunrise,sunset&timezone=auto`),
+    fetchJson(`${OPEN_METEO_WX}?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,pressure_msl&hourly=uv_index&forecast_days=1&daily=sunrise,sunset&timezone=auto`),
     fetchJson(`${OPEN_METEO_MARINE}?latitude=${lat}&longitude=${lon}&current=wave_height`).catch(() => null),
     fetchJson(`${USGS_EQ}?format=geojson&latitude=${lat}&longitude=${lon}&maxradiuskm=500&limit=1`).catch(() => null),
     fetchJson(NOAA_KP).catch(() => null),
@@ -115,7 +115,7 @@ export async function GET(request: Request) {
   scores.earthquake = { score: eqMag < 0 ? 100 : sigmoidDesc(eqMag, 4.5, 1.2), value: eqMag < 0 ? 'None' : `M${eqMag}` };
 
   // Pressure
-  const pressure = wx?.current?.surface_pressure ?? 1013;
+  const pressure = wx?.current?.pressure_msl ?? 1013;
   scores.pressure = { score: gaussian(pressure, 1013, 10), value: `${Math.round(pressure)} hPa` };
 
   // Humidity
