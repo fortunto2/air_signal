@@ -52,7 +52,7 @@ export function CitySearch({ onSelect }: CitySearchProps) {
         className="w-full px-4 py-2.5 bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
       />
       {open && results.length > 0 && (
-        <ul className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-64 overflow-auto">
+        <ul className="absolute z-[2000] w-full mt-1 bg-card border border-border rounded-lg shadow-xl max-h-64 overflow-auto">
           {results.map((r, i) => (
             <li
               key={`${r.lat}-${r.lon}-${i}`}
