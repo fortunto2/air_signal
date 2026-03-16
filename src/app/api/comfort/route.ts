@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
+import { recordSensorReading } from '@/lib/sensor-history';
 
 // Server-side comfort calculation — no WASM, pure fetch + simple normalize.
-// Full sigmoid normalization runs client-side via WASM.
+// Each call records sensor PM2.5 to history accumulator.
 
 const OPEN_METEO_AQ = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 const OPEN_METEO_WX = 'https://api.open-meteo.com/v1/forecast';
@@ -93,6 +94,11 @@ export async function GET(request: Request) {
   // Air (merged PM2.5 → AQI → sigmoid)
   const pm25Aqi = pm25 <= 12 ? pm25 / 12 * 50 : pm25 <= 35.4 ? 51 + (pm25 - 12.1) / 23.3 * 49 : 151;
   scores.air = { score: sigmoidDesc(pm25Aqi, 75, 0.04), value: `PM2.5: ${pm25.toFixed(1)} (${mergeSource})` };
+
+  // Record sensor reading to history accumulator
+  if (sMedianPm25 != null) {
+    recordSensorReading(lat, lon, sMedianPm25, sMedianPm10 ?? sMedianPm25 * 1.5);
+  }
 
   // Temperature
   const temp = wx?.current?.temperature_2m ?? 23;
