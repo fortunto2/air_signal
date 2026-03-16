@@ -10,11 +10,11 @@
     "pages:build": "pnpm build",
     "pages:dev": "pnpm dev",
     "type-check": "tsc --noEmit",
-    "deploy": "wrangler deploy",
-    "cf:dev": "wrangler dev"
+    "deploy": "opennextjs-cloudflare build && wrangler pages deploy .open-next/assets --project-name air-signal",
+    "cf:build": "opennextjs-cloudflare build"
   },
   "dependencies": {
-    "airq-core": "link:/Users/rustam/startups/active/airq/airq-core/pkg",
+    "airq-core": "file:./airq-core-wasm",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
+    "@opennextjs/cloudflare": "^1.17.1",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^25.2.3",
