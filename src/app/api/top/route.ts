@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 
-interface CityAqi {
+interface CityResult {
   name: string;
   country: string;
   lat: number;
   lon: number;
   pm25: number;
   aqi: number;
-  source: string;
+  sensors: number;
+  source: 'sensors' | 'no-sensors';
 }
 
 const POPULAR_CITIES = [
@@ -32,11 +33,15 @@ function pm25ToAqi(pm25: number): number {
   return Math.min(500, Math.round(151 + ((pm25 - 55.5) / 94.9) * 49));
 }
 
-async function fetchSensorMedian(lat: number, lon: number): Promise<number | null> {
+// In-memory cache (survives across requests in same serverless instance)
+let cache: { cities: CityResult[]; ts: number } | null = null;
+const CACHE_TTL = 10 * 60 * 1000; // 10 min
+
+async function fetchSensorData(lat: number, lon: number): Promise<{ median: number; count: number } | null> {
   try {
     const res = await fetch(
       `https://data.sensor.community/airrohr/v1/filter/area=${lat},${lon},10`,
-      { signal: AbortSignal.timeout(8000) }
+      { signal: AbortSignal.timeout(12000) } // 12s — wait, don't rush
     );
     if (!res.ok) return null;
     const data: Array<Record<string, unknown>> = await res.json();
@@ -53,60 +58,63 @@ async function fetchSensorMedian(lat: number, lon: number): Promise<number | nul
     }
     if (pm25s.length === 0) return null;
     pm25s.sort((a, b) => a - b);
-    return pm25s[Math.floor(pm25s.length / 2)];
+    return { median: pm25s[Math.floor(pm25s.length / 2)], count: pm25s.length };
   } catch {
     return null;
   }
 }
 
-export async function GET() {
-  // Fetch Open-Meteo model for all cities (single batch request)
-  const lats = POPULAR_CITIES.map(c => c.lat).join(',');
-  const lons = POPULAR_CITIES.map(c => c.lon).join(',');
-  const modelUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lats}&longitude=${lons}&current=pm2_5`;
+async function buildRanking(): Promise<CityResult[]> {
+  // Fetch all cities sensors in parallel — wait for all, no model fallback
+  const sensorResults = await Promise.allSettled(
+    POPULAR_CITIES.map(c => fetchSensorData(c.lat, c.lon))
+  );
 
-  // Fetch sensors for all cities in parallel (5s timeout each)
-  const [modelRes, ...sensorResults] = await Promise.allSettled([
-    fetch(modelUrl).then(r => r.json()),
-    ...POPULAR_CITIES.map(c => fetchSensorMedian(c.lat, c.lon)),
-  ]);
-
-  const modelData = modelRes.status === 'fulfilled' ? modelRes.value : null;
-  const modelItems = Array.isArray(modelData) ? modelData : modelData ? [modelData] : [];
-
-  const results: CityAqi[] = [];
+  const results: CityResult[] = [];
 
   for (let i = 0; i < POPULAR_CITIES.length; i++) {
-    const modelPm25 = modelItems[i]?.current?.pm2_5 ?? 0;
-    const sensorPm25 = sensorResults[i]?.status === 'fulfilled'
-      ? (sensorResults[i] as PromiseFulfilledResult<number | null>).value
+    const sensor = sensorResults[i].status === 'fulfilled'
+      ? (sensorResults[i] as PromiseFulfilledResult<{ median: number; count: number } | null>).value
       : null;
 
-    // Merge: sensors primary, model fallback
-    let pm25: number;
-    let source: string;
-    if (sensorPm25 != null && modelPm25 > 0) {
-      const div = sensorPm25 > 1 ? Math.max(modelPm25 / sensorPm25, sensorPm25 / modelPm25) : 1;
-      const mw = Math.min(0.2, 0.2 / (1 + Math.exp((div - 1) * 2)));
-      pm25 = sensorPm25 * (1 - mw) + modelPm25 * mw;
-      source = 'sensors';
-    } else if (sensorPm25 != null) {
-      pm25 = sensorPm25;
-      source = 'sensors';
+    if (sensor) {
+      results.push({
+        ...POPULAR_CITIES[i],
+        pm25: Math.round(sensor.median * 10) / 10,
+        aqi: pm25ToAqi(sensor.median),
+        sensors: sensor.count,
+        source: 'sensors',
+      });
     } else {
-      pm25 = modelPm25;
-      source = 'model';
+      // No sensors — show city but mark clearly
+      results.push({
+        ...POPULAR_CITIES[i],
+        pm25: 0,
+        aqi: 0,
+        sensors: 0,
+        source: 'no-sensors',
+      });
     }
-
-    results.push({
-      ...POPULAR_CITIES[i],
-      pm25: Math.round(pm25 * 10) / 10,
-      aqi: pm25ToAqi(pm25),
-      source,
-    });
   }
 
-  results.sort((a, b) => a.aqi - b.aqi);
+  // Sort: cities with sensors first (by AQI), then no-sensor cities last
+  results.sort((a, b) => {
+    if (a.source === 'no-sensors' && b.source !== 'no-sensors') return 1;
+    if (a.source !== 'no-sensors' && b.source === 'no-sensors') return -1;
+    return a.aqi - b.aqi;
+  });
 
-  return NextResponse.json({ cities: results });
+  return results;
+}
+
+export async function GET() {
+  // Return cache if fresh
+  if (cache && Date.now() - cache.ts < CACHE_TTL) {
+    return NextResponse.json({ cities: cache.cities, cached: true });
+  }
+
+  const cities = await buildRanking();
+  cache = { cities, ts: Date.now() };
+
+  return NextResponse.json({ cities, cached: false });
 }

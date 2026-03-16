@@ -9,7 +9,8 @@ interface CityAqi {
   lon: number;
   pm25: number;
   aqi: number;
-  source?: string;
+  sensors: number;
+  source: string;
 }
 
 interface TopCitiesProps {
@@ -32,7 +33,14 @@ export function TopCities({ onCityClick }: TopCitiesProps) {
   });
 
   if (isLoading) {
-    return <div className="animate-pulse h-64 bg-muted rounded-lg" />;
+    return (
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="text-xs text-muted-foreground mb-2">Loading sensor data...</div>
+        <div className="animate-pulse space-y-3">
+          {[...Array(6)].map((_, i) => <div key={i} className="h-8 bg-muted rounded" />)}
+        </div>
+      </div>
+    );
   }
 
   const cities = data?.cities || [];
@@ -40,29 +48,40 @@ export function TopCities({ onCityClick }: TopCitiesProps) {
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
       <div className="px-4 py-3 border-b border-border">
-        <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">AQI Ranking</h3>
+        <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+          AQI Ranking
+        </h3>
+        <p className="text-[10px] text-muted-foreground mt-0.5">Sensor.Community real data</p>
       </div>
       <div className="divide-y divide-border">
         {cities.map((city, i) => {
+          const noData = city.source === 'no-sensors';
           const label = aqiLabel(city.aqi);
           return (
             <button
               key={`${city.lat}-${city.lon}`}
-              className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors text-left"
+              className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-muted/50 transition-colors text-left"
               onClick={() => onCityClick?.(city)}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-muted-foreground text-sm w-5">{i + 1}</span>
+              <div className="flex items-center gap-2.5">
+                <span className="text-muted-foreground text-xs w-4">{noData ? '—' : i + 1}</span>
                 <div>
                   <span className="font-medium text-sm">{city.name}</span>
-                  <span className="text-muted-foreground text-xs ml-1">{city.country}</span>
+                  <span className="text-muted-foreground text-[10px] ml-1">{city.country}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground">PM2.5 {city.pm25}</span>
-                <span className={`text-sm font-mono font-semibold ${label.color}`}>
-                  {city.aqi}
-                </span>
+              <div className="flex items-center gap-2">
+                {noData ? (
+                  <span className="text-[10px] text-muted-foreground">no sensors</span>
+                ) : (
+                  <>
+                    <span className="text-[10px] text-muted-foreground">{city.sensors}s</span>
+                    <span className="text-xs text-muted-foreground">{city.pm25}</span>
+                    <span className={`text-sm font-mono font-semibold ${label.color}`}>
+                      {city.aqi}
+                    </span>
+                  </>
+                )}
               </div>
             </button>
           );
