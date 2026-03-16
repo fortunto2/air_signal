@@ -7,6 +7,8 @@ import useSWR from 'swr';
 import { CitySearch } from '@/components/CitySearch';
 import { TopCities } from '@/components/TopCities';
 import { ComfortPanel } from '@/components/ComfortPanel';
+import { HistoryChart } from '@/components/HistoryChart';
+import { EventBanner } from '@/components/EventBanner';
 
 const CityMap = dynamic(() => import('@/components/CityMap').then(m => m.CityMap), {
   ssr: false,
@@ -57,9 +59,18 @@ function HomeContent() {
   // Top cities for map markers
   const { data: topData } = useSWR<{ cities: Array<SelectedCity & { aqi: number; pm25: number }> }>('/api/top', fetcher);
 
-  // Sensors for selected city
+  // Sensors + sources + comfort for selected city
   const { data: sensorData } = useSWR(
     `/api/sensors?lat=${selectedCity.lat}&lon=${selectedCity.lon}&radius=15`,
+    fetcher,
+    { refreshInterval: 5 * 60 * 1000 }
+  );
+  const { data: sourcesData } = useSWR(
+    `/api/sources?lat=${selectedCity.lat}&lon=${selectedCity.lon}&radius=15`,
+    fetcher
+  );
+  const { data: comfortData } = useSWR(
+    `/api/comfort?lat=${selectedCity.lat}&lon=${selectedCity.lon}`,
     fetcher,
     { refreshInterval: 5 * 60 * 1000 }
   );
@@ -80,6 +91,15 @@ function HomeContent() {
   };
 
   const sensors = sensorData?.sensors || [];
+  const sources = sourcesData?.sources || [];
+
+  // Extract wind from comfort data ("11.2 km/h, 135°")
+  const windVal = comfortData?.scores?.wind?.value || '';
+  const windSpeedMatch = windVal.match?.(/([\d.]+)\s*km/);
+  const windDirMatch = windVal.match?.(/,\s*([\d.]+)°/);
+  const wind = windSpeedMatch
+    ? { speed: parseFloat(windSpeedMatch[1]), deg: windDirMatch ? parseFloat(windDirMatch[1]) : 0 }
+    : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -93,27 +113,32 @@ function HomeContent() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-4 space-y-4">
-        {/* Map with sensors */}
+        {/* Event banner */}
+        <EventBanner sensors={sensors} cityName={selectedCity.name} />
+
+        {/* Map with sensors + sources */}
         <CityMap
           cities={mapCities}
           sensors={sensors}
+          sources={sources}
+          wind={wind}
           selectedCity={selectedCity}
           center={[selectedCity.lat, selectedCity.lon]}
           zoom={selectedCity === DEFAULT_CITY ? 5 : 10}
           onCityClick={(c) => handleCitySelect({ ...c, country: c.country || '' })}
         />
 
-        {/* Sensor count badge */}
-        {sensors.length > 0 && (
-          <div className="text-xs text-muted-foreground">
-            {sensors.length} Sensor.Community sensors in 15km radius
-          </div>
-        )}
+        {/* Sensor + source count */}
+        <div className="text-xs text-muted-foreground flex gap-4">
+          {sensors.length > 0 && <span>{sensors.length} sensors</span>}
+          {sources.length > 0 && <span>{sources.length} pollution sources</span>}
+        </div>
 
         {/* Comfort + ranking */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-4">
             <ComfortPanel city={selectedCity} />
+            <HistoryChart lat={selectedCity.lat} lon={selectedCity.lon} />
           </div>
           <div>
             <TopCities onCityClick={handleCitySelect} />

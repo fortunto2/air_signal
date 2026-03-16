@@ -21,9 +21,18 @@ interface Sensor {
   pm10: number;
 }
 
+interface Source {
+  name: string;
+  type: string;
+  lat: number;
+  lon: number;
+}
+
 interface CityMapProps {
   cities: MapCity[];
   sensors?: Sensor[];
+  sources?: Source[];
+  wind?: { speed: number; deg: number } | null;
   center?: [number, number];
   zoom?: number;
   onCityClick?: (city: MapCity) => void;
@@ -47,11 +56,13 @@ function aqiColor(aqi: number): string {
   return '#800000';
 }
 
-export function CityMap({ cities, sensors = [], center = [36.5, 32], zoom = 5, onCityClick, selectedCity }: CityMapProps) {
+export function CityMap({ cities, sensors = [], sources = [], wind, center = [36.5, 32], zoom = 5, onCityClick, selectedCity }: CityMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
   const cityMarkersRef = useRef<L.CircleMarker[]>([]);
   const sensorMarkersRef = useRef<L.CircleMarker[]>([]);
+  const sourceMarkersRef = useRef<L.Layer[]>([]);
+  const windLayerRef = useRef<L.Layer | null>(null);
 
   useEffect(() => {
     if (!mapRef.current || leafletMap.current) return;
@@ -133,6 +144,50 @@ export function CityMap({ cities, sensors = [], center = [36.5, 32], zoom = 5, o
       sensorMarkersRef.current.push(marker);
     }
   }, [sensors]);
+
+  // Source markers (factories, power plants — small squares)
+  useEffect(() => {
+    if (!leafletMap.current) return;
+    sourceMarkersRef.current.forEach(m => (m as L.CircleMarker).remove());
+    sourceMarkersRef.current = [];
+
+    for (const s of sources) {
+      const color = s.type === 'power_plant' ? '#ff6b6b' : s.type === 'factory' ? '#ffa726' : '#78909c';
+      const icon = s.type === 'power_plant' ? 'P' : s.type === 'factory' ? 'F' : 'I';
+      const marker = L.circleMarker([s.lat, s.lon], {
+        radius: 5,
+        fillColor: color,
+        color: '#fff',
+        weight: 1,
+        fillOpacity: 0.8,
+      }).addTo(leafletMap.current!);
+      marker.bindTooltip(`<b>${icon}</b> ${s.name}<br><small>${s.type}</small>`, { direction: 'top' });
+      sourceMarkersRef.current.push(marker);
+    }
+  }, [sources]);
+
+  // Wind arrow at selected city
+  useEffect(() => {
+    if (!leafletMap.current) return;
+    if (windLayerRef.current) {
+      (windLayerRef.current as L.Marker).remove();
+      windLayerRef.current = null;
+    }
+    if (!wind || !selectedCity) return;
+
+    const arrows = ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'];
+    const idx = Math.round(((wind.deg + 22.5) % 360) / 45) % 8;
+    const icon = L.divIcon({
+      html: `<div style="font-size:28px;color:#4fc3f7;text-shadow:0 0 6px rgba(79,195,247,0.5);transform:rotate(0deg)">${arrows[idx]}</div>`,
+      className: '',
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+    });
+    const marker = L.marker([selectedCity.lat, selectedCity.lon], { icon, interactive: false })
+      .addTo(leafletMap.current);
+    marker.bindTooltip(`Wind: ${wind.speed} km/h`, { direction: 'right', permanent: false });
+    windLayerRef.current = marker;
+  }, [wind, selectedCity]);
 
   // Fly to selected city
   useEffect(() => {

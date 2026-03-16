@@ -40,7 +40,7 @@ export async function GET(request: Request) {
   // Parallel fetch all data sources + Sensor.Community
   const [aq, wx, marine, eq, kp, sensors] = await Promise.all([
     fetchJson(`${OPEN_METEO_AQ}?latitude=${lat}&longitude=${lon}&current=pm2_5,pm10`),
-    fetchJson(`${OPEN_METEO_WX}?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,pressure_msl&hourly=uv_index&forecast_days=1&daily=sunrise,sunset&timezone=auto`),
+    fetchJson(`${OPEN_METEO_WX}?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,pressure_msl&hourly=uv_index&forecast_days=1&daily=sunrise,sunset&timezone=auto`),
     fetchJson(`${OPEN_METEO_MARINE}?latitude=${lat}&longitude=${lon}&current=wave_height`).catch(() => null),
     fetchJson(`${USGS_EQ}?format=geojson&latitude=${lat}&longitude=${lon}&maxradiuskm=500&limit=1`).catch(() => null),
     fetchJson(NOAA_KP).catch(() => null),
@@ -99,8 +99,9 @@ export async function GET(request: Request) {
   scores.temperature = { score: gaussian(temp, 23, 12), value: `${temp}°C` };
 
   // Wind
-  const wind = wx?.current?.wind_speed_10m ?? 0;
-  scores.wind = { score: sigmoidDesc(wind, 25, 0.12), value: `${wind} km/h` };
+  const windSpeed = wx?.current?.wind_speed_10m ?? 0;
+  const windDir = wx?.current?.wind_direction_10m ?? 0;
+  scores.wind = { score: sigmoidDesc(windSpeed, 25, 0.12), value: `${windSpeed} km/h, ${windDir}°` };
 
   // UV
   const uv = wx?.hourly?.uv_index?.[0] ?? 0;
