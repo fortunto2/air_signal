@@ -83,7 +83,7 @@ export function CityMap({ cities, sensors = [], center = [36.5, 32], zoom = 5, o
 
     for (const city of cities) {
       const color = city.aqi != null ? aqiColor(city.aqi) : '#888';
-      const radius = city.aqi != null ? Math.max(8, Math.min(22, city.aqi / 8)) : 10;
+      const radius = city.aqi != null ? Math.max(6, Math.min(14, 6 + city.aqi / 30)) : 8;
 
       const marker = L.circleMarker([city.lat, city.lon], {
         radius,
@@ -95,7 +95,7 @@ export function CityMap({ cities, sensors = [], center = [36.5, 32], zoom = 5, o
       }).addTo(leafletMap.current!);
 
       const label = city.aqi != null
-        ? `<b>${city.name}</b><br>AQI: ${city.aqi}<br>PM2.5: ${city.pm25} ug/m3`
+        ? `<b>${city.name}</b><br>AQI: ${city.aqi} <small>(model)</small><br>PM2.5: ${city.pm25}`
         : `<b>${city.name}</b>`;
       marker.bindTooltip(label, { direction: 'top', offset: [0, -8] });
 
