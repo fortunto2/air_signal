@@ -7,6 +7,7 @@ interface CityAqi {
   lon: number;
   pm25: number;
   aqi: number;
+  source: string;
 }
 
 const POPULAR_CITIES = [
@@ -24,43 +25,87 @@ const POPULAR_CITIES = [
   { name: 'Tbilisi', country: 'Georgia', lat: 41.69, lon: 44.80 },
 ];
 
-export async function GET() {
-  const results: CityAqi[] = [];
+function pm25ToAqi(pm25: number): number {
+  if (pm25 <= 12) return Math.round((pm25 / 12) * 50);
+  if (pm25 <= 35.4) return Math.round(51 + ((pm25 - 12.1) / 23.3) * 49);
+  if (pm25 <= 55.4) return Math.round(101 + ((pm25 - 35.5) / 19.9) * 49);
+  return Math.min(500, Math.round(151 + ((pm25 - 55.5) / 94.9) * 49));
+}
 
-  // Batch fetch AQI for all cities
+async function fetchSensorMedian(lat: number, lon: number): Promise<number | null> {
+  try {
+    const res = await fetch(
+      `https://data.sensor.community/airrohr/v1/filter/area=${lat},${lon},10`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    if (!res.ok) return null;
+    const data: Array<Record<string, unknown>> = await res.json();
+    const pm25s: number[] = [];
+    for (const s of data) {
+      const vals = s.sensordatavalues as Array<Record<string, string>>;
+      if (!vals) continue;
+      for (const v of vals) {
+        if (v.value_type === 'P2') {
+          const val = parseFloat(v.value);
+          if (val > 0 && val < 500) pm25s.push(val);
+        }
+      }
+    }
+    if (pm25s.length === 0) return null;
+    pm25s.sort((a, b) => a - b);
+    return pm25s[Math.floor(pm25s.length / 2)];
+  } catch {
+    return null;
+  }
+}
+
+export async function GET() {
+  // Fetch Open-Meteo model for all cities (single batch request)
   const lats = POPULAR_CITIES.map(c => c.lat).join(',');
   const lons = POPULAR_CITIES.map(c => c.lon).join(',');
-  const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lats}&longitude=${lons}&current=pm2_5`;
+  const modelUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lats}&longitude=${lons}&current=pm2_5`;
 
-  try {
-    const res = await fetch(url);
-    const data = await res.json();
+  // Fetch sensors for all cities in parallel (5s timeout each)
+  const [modelRes, ...sensorResults] = await Promise.allSettled([
+    fetch(modelUrl).then(r => r.json()),
+    ...POPULAR_CITIES.map(c => fetchSensorMedian(c.lat, c.lon)),
+  ]);
 
-    // Open-Meteo returns array for multi-location
-    const items = Array.isArray(data) ? data : [data];
-    for (let i = 0; i < POPULAR_CITIES.length && i < items.length; i++) {
-      const pm25 = items[i]?.current?.pm2_5 ?? 0;
-      // Simple AQI from PM2.5 (EPA)
-      let aqi = 0;
-      if (pm25 <= 12) aqi = Math.round((pm25 / 12) * 50);
-      else if (pm25 <= 35.4) aqi = Math.round(51 + ((pm25 - 12.1) / 23.3) * 49);
-      else if (pm25 <= 55.4) aqi = Math.round(101 + ((pm25 - 35.5) / 19.9) * 49);
-      else aqi = Math.round(151 + ((pm25 - 55.5) / 94.9) * 49);
+  const modelData = modelRes.status === 'fulfilled' ? modelRes.value : null;
+  const modelItems = Array.isArray(modelData) ? modelData : modelData ? [modelData] : [];
 
-      results.push({
-        ...POPULAR_CITIES[i],
-        pm25: Math.round(pm25 * 10) / 10,
-        aqi,
-      });
+  const results: CityAqi[] = [];
+
+  for (let i = 0; i < POPULAR_CITIES.length; i++) {
+    const modelPm25 = modelItems[i]?.current?.pm2_5 ?? 0;
+    const sensorPm25 = sensorResults[i]?.status === 'fulfilled'
+      ? (sensorResults[i] as PromiseFulfilledResult<number | null>).value
+      : null;
+
+    // Merge: sensors primary, model fallback
+    let pm25: number;
+    let source: string;
+    if (sensorPm25 != null && modelPm25 > 0) {
+      const div = sensorPm25 > 1 ? Math.max(modelPm25 / sensorPm25, sensorPm25 / modelPm25) : 1;
+      const mw = Math.min(0.2, 0.2 / (1 + Math.exp((div - 1) * 2)));
+      pm25 = sensorPm25 * (1 - mw) + modelPm25 * mw;
+      source = 'sensors';
+    } else if (sensorPm25 != null) {
+      pm25 = sensorPm25;
+      source = 'sensors';
+    } else {
+      pm25 = modelPm25;
+      source = 'model';
     }
-  } catch {
-    // Fallback: return cities without AQI data
-    for (const city of POPULAR_CITIES) {
-      results.push({ ...city, pm25: 0, aqi: 0 });
-    }
+
+    results.push({
+      ...POPULAR_CITIES[i],
+      pm25: Math.round(pm25 * 10) / 10,
+      aqi: pm25ToAqi(pm25),
+      source,
+    });
   }
 
-  // Sort by AQI (best first)
   results.sort((a, b) => a.aqi - b.aqi);
 
   return NextResponse.json({ cities: results });
