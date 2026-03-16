@@ -36,7 +36,7 @@ async function fetchSensorMedian(lat: number, lon: number): Promise<number | nul
   try {
     const res = await fetch(
       `https://data.sensor.community/airrohr/v1/filter/area=${lat},${lon},10`,
-      { signal: AbortSignal.timeout(5000) }
+      { signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return null;
     const data: Array<Record<string, unknown>> = await res.json();
