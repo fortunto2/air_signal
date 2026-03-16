@@ -1,5 +1,6 @@
 import { DataModule } from '../../types';
 import { fetchOpenMeteo } from '../apis/open-meteo';
+import { normalizeAir } from '../airq-core';
 
 export const airModule: DataModule = {
   id: 'air',
@@ -16,8 +17,6 @@ export const airModule: DataModule = {
     return data;
   },
   normalize(pm25: number) {
-    // Linear interpolation for 0-100 scale: 0-50ug/m3 -> 100-0
-    const score = Math.max(0, Math.min(100, 100 - (pm25 * 2)));
-    return score;
-  }
+    return normalizeAir(pm25);
+  },
 };

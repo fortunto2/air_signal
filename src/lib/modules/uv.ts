@@ -1,5 +1,6 @@
 import { DataModule } from '../../types';
 import { fetchOpenMeteo } from '../apis/open-meteo';
+import { normalizeUv } from '../airq-core';
 
 export const uvModule: DataModule = {
   id: 'uv',
@@ -16,7 +17,6 @@ export const uvModule: DataModule = {
     return data.hourly.uv_index[0] || 0;
   },
   normalize(uv: number) {
-    // UV Index: 0-2=100, >11=0
-    return Math.max(0, 100 - (uv * 9));
-  }
+    return normalizeUv(uv);
+  },
 };

@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      airq-core:
+        specifier: link:/Users/rustam/startups/active/airq/airq-core/pkg
+        version: link:../airq/airq-core/pkg
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

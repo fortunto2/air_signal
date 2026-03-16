@@ -1,4 +1,5 @@
 import { DataModule } from '../../types';
+import { normalizeEarthquake } from '../airq-core';
 
 export const earthquakeModule: DataModule = {
   id: 'earthquake',
@@ -12,9 +13,8 @@ export const earthquakeModule: DataModule = {
     return await response.json();
   },
   normalize(data: { features: Array<{ properties: { mag: number } }> }) {
-    if (!data.features || data.features.length === 0) return 100;
+    if (!data.features || data.features.length === 0) return normalizeEarthquake(-1);
     const mag = data.features[0].properties.mag;
-    // Mag < 3 = 100, > 6 = 0
-    return Math.max(0, 100 - (Math.max(0, mag - 3) * 33));
-  }
+    return normalizeEarthquake(mag);
+  },
 };

@@ -1,5 +1,6 @@
 import { DataModule } from '../../types';
 import { fetchOpenMeteo } from '../apis/open-meteo';
+import { normalizePressure } from '../airq-core';
 
 export const pressureModule: DataModule = {
   id: 'pressure',
@@ -17,23 +18,16 @@ export const pressureModule: DataModule = {
     return data.hourly?.surface_pressure ?? [];
   },
   normalize(pressures: number[]) {
-    if (!pressures.length) return 50;
+    if (!pressures.length) return normalizePressure(1013);
 
     const current = pressures[pressures.length - 1];
+    let change3h: number | undefined;
 
-    // Ideal: 1013 hPa (standard atmosphere)
-    // Deviation penalty: ±20 hPa → 0
-    const deviationScore = Math.max(0, 100 - Math.abs(current - 1013) * 5);
-
-    // Rapid change penalty (migraine risk): >5 hPa/3h is bad
     if (pressures.length >= 4) {
       const recent = pressures.slice(-4);
-      const change = Math.abs(recent[recent.length - 1] - recent[0]);
-      if (change > 5) {
-        return Math.max(0, deviationScore - change * 5);
-      }
+      change3h = Math.abs(recent[recent.length - 1] - recent[0]);
     }
 
-    return deviationScore;
+    return normalizePressure(current, change3h);
   },
 };

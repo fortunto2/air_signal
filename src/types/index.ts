@@ -10,6 +10,10 @@ export interface ComfortResult {
   subScores: Record<string, SubScore>;
 }
 
+export interface CompareResult {
+  cities: Record<string, ComfortResult>;
+}
+
 export interface DataModule {
   id: string;
   name: string;

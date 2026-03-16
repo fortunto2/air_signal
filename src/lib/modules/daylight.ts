@@ -1,5 +1,6 @@
 import { DataModule } from '../../types';
 import { fetchOpenMeteo } from '../apis/open-meteo';
+import { normalizeDaylight } from '../airq-core';
 
 export const daylightModule: DataModule = {
   id: 'daylight',
@@ -21,13 +22,12 @@ export const daylightModule: DataModule = {
     };
   },
   normalize(data: { sunrise?: string; sunset?: string }) {
-    if (!data.sunrise || !data.sunset) return 50;
+    if (!data.sunrise || !data.sunset) return normalizeDaylight(12);
 
     const rise = new Date(data.sunrise).getTime();
     const set = new Date(data.sunset).getTime();
     const hours = (set - rise) / (1000 * 60 * 60);
 
-    // 14+ hours = 100 (summer), 8 hours = 50, <6 hours = 0 (polar winter)
-    return Math.max(0, Math.min(100, (hours - 6) * 12.5));
+    return normalizeDaylight(hours);
   },
 };

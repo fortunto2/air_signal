@@ -1,5 +1,6 @@
 import { DataModule } from '../../types';
 import { fetchOpenMeteo } from '../apis/open-meteo';
+import { normalizeMarine } from '../airq-core';
 
 export const marineModule: DataModule = {
   id: 'sea',
@@ -16,7 +17,6 @@ export const marineModule: DataModule = {
     return data.current;
   },
   normalize(data: { wave_height: number }) {
-    // Wave height 0-1m=100, >4m=0
-    return Math.max(0, 100 - (data.wave_height * 25));
-  }
+    return normalizeMarine(data.wave_height);
+  },
 };

@@ -1,5 +1,6 @@
 import { DataModule } from '../../types';
 import { fetchOpenMeteo } from '../apis/open-meteo';
+import { normalizePollen } from '../airq-core';
 
 export const pollenModule: DataModule = {
   id: 'pollen',
@@ -21,14 +22,12 @@ export const pollenModule: DataModule = {
     alder_pollen?: number;
     ragweed_pollen?: number;
   }) {
-    const values = [
+    const maxPollen = Math.max(
       data.birch_pollen ?? 0,
       data.grass_pollen ?? 0,
       data.alder_pollen ?? 0,
       data.ragweed_pollen ?? 0,
-    ];
-    const maxPollen = Math.max(...values);
-    // 0 grains/m³ = 100 (perfect), ≥100 = 0 (severe)
-    return Math.max(0, Math.min(100, 100 - maxPollen));
+    );
+    return normalizePollen(maxPollen);
   },
 };
