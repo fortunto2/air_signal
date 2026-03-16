@@ -1,33 +1,36 @@
-import React from 'react';
-import { ComfortScore } from '@/components/ComfortScore';
-import { MetricCard } from '@/components/MetricCard';
-import { cities as CITIES } from '@/lib/cities';
+'use client';
 
-export default async function CityPage({ params }: { params: { city: string } }) {
-  const city = params.city.toLowerCase();
-  const config = CITIES[city];
+import { use } from 'react';
+import { ComfortPanel } from '@/components/ComfortPanel';
 
-  if (!config) return <div>City not found</div>;
+const CITIES: Record<string, { name: string; country: string; lat: number; lon: number }> = {
+  gazipasha: { name: 'Gazipasha', country: 'Turkey', lat: 36.27, lon: 32.32 },
+  alanya: { name: 'Alanya', country: 'Turkey', lat: 36.54, lon: 32.00 },
+  antalya: { name: 'Antalya', country: 'Turkey', lat: 36.89, lon: 30.71 },
+};
 
-  // For initial server side render
-  const res = await fetch(`http://localhost:3000/api/comfort?lat=${config.lat}&lon=${config.lon}`);
-  const data = await res.json();
+export default function CityPage({ params }: { params: Promise<{ city: string }> }) {
+  const { city } = use(params);
+  const config = CITIES[city.toLowerCase()];
+
+  if (!config) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">City not found. Try searching from the homepage.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold mb-6">{city} Dashboard</h1>
-      <ComfortScore score={data.totalScore} />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-        {Object.entries(data.subScores).map(([key, sub]: [string, any]) => (
-          <MetricCard 
-            key={key} 
-            name={key} 
-            normalizedScore={sub.normalized} 
-            rawValue={sub.value.toString()} 
-            icon="temp" 
-          />
-        ))}
-      </div>
+    <div className="min-h-screen bg-background">
+      <header className="bg-card border-b border-border">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <a href="/" className="text-xl font-bold text-foreground">Air Signal</a>
+        </div>
+      </header>
+      <main className="max-w-4xl mx-auto px-4 py-6">
+        <ComfortPanel city={config} />
+      </main>
     </div>
   );
 }

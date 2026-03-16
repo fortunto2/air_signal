@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Мониторинг воздуха в Газипаше",
-  description: "Дашборд качества воздуха с реальными данными из Газипаши, Турция",
+  title: "Air Signal — Environmental Comfort Dashboard",
+  description: "Real-time air quality, comfort index, and environmental signals for any city. Powered by Rust WASM.",
 };
 
 export default function RootLayout({
