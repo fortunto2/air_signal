@@ -1,181 +1,76 @@
-# 🌍 Дашборд качества воздуха - Газипаша
+# Air Signal
 
-Современный веб-дашборд для мониторинга качества воздуха в городе Газипаша, Турция. Отображает данные с датчика ESP8266-15072310, подключенного к международной сети [Sensor.Community](https://sensor.community/).
+Environmental comfort dashboard for any city. Real-time air quality with 14 signals, Leaflet map, city search, and Rust WASM core.
 
-## ✨ Особенности
+## Features
 
-- 📊 **Крупное отображение** текущих показателей PM2.5 и PM10
-- 📈 **Исторические графики** с возможностью анализа трендов
-- 🌡️ **Климатические данные** (температура, влажность, давление)
-- 🎨 **Современный дизайн** с использованием shadcn/ui
-- 📱 **Адаптивный интерфейс** для всех устройств
-- ⚡ **Быстрая загрузка** благодаря SWR кэшированию
-- 🔄 **Автообновление** данных каждые 5 минут
+- Interactive dark map with AQI-colored city markers
+- City search (autocomplete, any city in the world)
+- 14-signal comfort index with sigmoid/gaussian normalization
+- Top cities ranking by air quality
+- Sensor.Community primary data, Open-Meteo CAMS model as fallback
+- Dynamic merge: high divergence → sensors win, model ignored
 
-## 🏗️ Технический стек
+## Stack
 
-- **Framework**: Next.js 15 (App Router)
-- **UI Components**: shadcn/ui + Tailwind CSS v4
-- **Charts**: Recharts
-- **Data Fetching**: SWR
-- **Deployment**: Cloudflare Pages
-- **Package Manager**: pnpm
-- **Language**: TypeScript
+- **Frontend**: Next.js 16, Tailwind CSS v4, shadcn/ui, Leaflet, SWR
+- **Core**: airq-core (Rust → WASM) — AQI, sigmoid normalize, cities DB
+- **Deploy**: Cloudflare Pages
 
-## 🚀 Быстрый старт
+## Quick start
 
-### Предварительные требования
-
-- Node.js 18+ 
-- pnpm (рекомендуется) или npm
-
-### Локальная разработка
-
-1. **Клонирование и установка зависимостей:**
 ```bash
-git clone <repository-url>
-cd air_signal
 pnpm install
+pnpm dev --webpack
+# Open http://localhost:3000
 ```
 
-2. **Запуск dev сервера:**
+## API Routes
+
+| Route | What |
+|-------|------|
+| `/api/comfort?lat=X&lon=Y` | 14-signal comfort scores (Sensor.Community + Open-Meteo merge) |
+| `/api/geocode?q=tokyo` | City search autocomplete |
+| `/api/top` | Top 12 cities sorted by AQI |
+
+## 14 Signals
+
+All normalization runs in Rust (sigmoid/gaussian, no piecewise linear):
+
+| Signal | Curve | Params |
+|--------|-------|--------|
+| Air (PM2.5) | sigmoid desc | AQI mid=75, k=0.04 |
+| Temperature | gaussian | c=23°C, σ=12 |
+| Wind | sigmoid desc | mid=25km/h, k=0.12 |
+| Sea (waves) | sigmoid desc | mid=2m, k=1.5 |
+| UV | sigmoid desc | mid=6, k=0.6 |
+| Earthquake | sigmoid desc | mid=M4.5, k=1.2 |
+| Fire | sigmoid asc | mid=30km, k=0.08 |
+| Pollen | sigmoid desc | mid=50, k=0.06 |
+| Pressure | gaussian | c=1013hPa, σ=10 |
+| Geomagnetic | sigmoid desc | mid=Kp4, k=0.8 |
+| Humidity | gaussian | c=50%, σ=25 |
+| Daylight | sigmoid asc | mid=10h, k=0.5 |
+| Noise | sigmoid desc | mid=60dB, k=0.15 |
+| Moon | cosine | 50(cos(2πφ)+1) |
+
+## Rebuild WASM
+
+After changes to `airq-core`:
+
 ```bash
-pnpm dev
+cd ../airq/airq-core
+wasm-pack build --target web --features wasm --no-default-features
+# Package auto-linked via pnpm local dependency
 ```
 
-3. **Откройте в браузере:**
-```
-http://localhost:3000
-```
-
-### Сборка проекта
+## Deploy
 
 ```bash
-pnpm build
+pnpm build --webpack
+wrangler pages deploy .next --project-name air-signal
 ```
 
-## 🌐 Деплой на Cloudflare Pages
+## License
 
-### Автоматический деплой
-
-1. **Подключите репозиторий к Cloudflare Pages**
-2. **Настройки сборки:**
-   - Build command: `pnpm run pages:build`
-   - Build output directory: `.next`
-   - Root directory: `/` (или оставьте пустым)
-
-### Ручной деплой
-
-```bash
-# Сборка проекта
-pnpm build
-
-# Деплой через Wrangler CLI
-npx wrangler pages deploy .next --project-name air-signal-gazipasa
-```
-
-## 📊 API Endpoints
-
-### `/api/sensor`
-
-Возвращает текущие и исторические данные датчика.
-
-**Response format:**
-```json
-{
-  "current": {
-    "timestamp": "2024-01-15T10:00:00Z",
-    "pm25": 25.5,
-    "pm10": 35.2,
-    "temperature": 22.3,
-    "humidity": 45.7,
-    "pressure": 1013.25
-  },
-  "historical": [
-    // массив исторических данных
-  ]
-}
-```
-
-## 🎯 Структура проекта
-
-```
-src/
-├── app/
-│   ├── api/sensor/         # API endpoint для данных датчика
-│   ├── globals.css         # Глобальные стили
-│   └── page.tsx           # Главная страница
-├── components/
-│   ├── ui/                # Базовые UI компоненты (shadcn/ui)
-│   ├── AirQualityDisplay.tsx  # Текущие показатели
-│   └── HistoricalChart.tsx    # Исторические графики
-├── lib/
-│   └── utils.ts           # Утилитарные функции
-└── types/
-    └── sensor.ts          # TypeScript типы
-```
-
-## 📈 Показатели качества воздуха
-
-Дашборд использует стандарты WHO для классификации качества воздуха по PM2.5:
-
-| Значение (µg/m³) | Статус | Цвет |
-|------------------|--------|------|
-| 0-12 | Отличное | 🟢 Зеленый |
-| 13-35 | Хорошее | 🟡 Желтый |
-| 36-55 | Умеренное | 🟠 Оранжевый |
-| 56-150 | Нездоровое | 🔴 Красный |
-| 150+ | Опасное | 🟣 Темно-красный |
-
-## 🔧 Настройка и расширение
-
-### Добавление новых датчиков
-
-1. Обновите `CHIP_ID` в `src/app/api/sensor/route.ts`
-2. Добавьте логику парсинга для новых типов данных
-3. Обновите типы в `src/types/sensor.ts`
-
-### Добавление новых источников данных
-
-1. Создайте новый API endpoint в `src/app/api/`
-2. Добавьте соответствующие компоненты в `src/components/`
-3. Интегрируйте в главную страницу
-
-### Кастомизация UI
-
-- Цвета и темы: `src/app/globals.css`
-- Компоненты: `src/components/ui/`
-- Утилиты: `src/lib/utils.ts`
-
-## 📊 Источники данных
-
-- **Текущие данные**: [Sensor.Community API](https://data.sensor.community/)
-- **Исторические данные**: [Madavi.de Archive](https://api-rrd.madavi.de/)
-- **Датчик**: ESP8266-15072310 (SDS011 + BME280)
-
-## 🤝 Вклад в проект
-
-1. Fork репозитория
-2. Создайте feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit изменения (`git commit -m 'Add some AmazingFeature'`)
-4. Push в branch (`git push origin feature/AmazingFeature`)
-5. Откройте Pull Request
-
-## 📝 Лицензия
-
-Проект распространяется под лицензией MIT. См. `LICENSE` для подробностей.
-
-## 🙏 Благодарности
-
-- [Sensor.Community](https://sensor.community/) за открытые данные
-- [Madavi.de](https://www.madavi.de/) за архивирование исторических данных
-- [OpenData Stuttgart](https://github.com/opendata-stuttgart) за инициативу
-- Сообщество разработчиков за инструменты с открытым исходным кодом
-
-## 📞 Контакты
-
-Если у вас есть вопросы или предложения, создайте issue в репозитории.
-
----
-
-**Сделано с ❤️ для чистого воздуха в Газипаше** 🌿
+MIT
