@@ -43,7 +43,7 @@ export function CitySearch({ onSelect }: CitySearchProps) {
   }, []);
 
   return (
-    <div ref={ref} className="relative w-full max-w-md">
+    <div ref={ref} className="relative w-full max-w-md z-[1000]">
       <input
         type="text"
         value={query}
