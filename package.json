@@ -10,7 +10,8 @@
     "pages:build": "pnpm build",
     "pages:dev": "pnpm dev",
     "type-check": "tsc --noEmit",
-    "deploy": "opennextjs-cloudflare build && wrangler pages deploy .open-next/assets --project-name air-signal",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "cf:build": "opennextjs-cloudflare build"
   },
   "dependencies": {

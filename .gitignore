@@ -42,3 +42,6 @@ next-env.d.ts
 .playwright-mcp/
 .solo/
 airq-core-wasm/
+
+# OpenNext build output
+/.open-next/

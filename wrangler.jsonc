@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "air-signal",
+  "compatibility_date": "2026-08-01",
+
+  // OpenNext runs the Next.js server inside the Worker, which needs Node built-ins.
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Built by `opennextjs-cloudflare build`, not by hand. The previous config pointed `main` at a
+  // src/worker.js that no longer existed and served assets straight out of `.next/static` — the
+  // reason the Pages deploy answered 522 rather than a page.
+  "main": ".open-next/worker.js",
+
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  "observability": { "enabled": true },
+
+  // The domain is the product name; workers.dev stays off so there is exactly one indexable
+  // host and nothing competes with it in search.
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "airsignal.app", "custom_domain": true }
+  ]
+}
