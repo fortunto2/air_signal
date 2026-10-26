@@ -1,3 +1,5 @@
+> **Superseded.** Air Signal now lives at [airsignal.app](https://airsignal.app), source [fortunto2/air-signal-web](https://github.com/fortunto2/air-signal-web) (Astro on Cloudflare Workers, same Rust core: [airq](https://github.com/fortunto2/airq)). This repo is the first Next.js version and is archived.
+
 # Air Signal
 
 Environmental comfort dashboard for any city. Real-time air quality with 14 signals, Leaflet map, city search, and Rust WASM core.
